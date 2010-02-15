@@ -1,0 +1,146 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" 
+                    "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+  <title>QUnit Tests</title>
+  <script src="http://code.jquery.com/jquery-latest.js"></script>
+  <script type="text/javascript" src="testrunner.js"></script>
+  <link rel="stylesheet" href="testsuite.css" type="text/css" media="screen" />
+
+  <script language="JavaScript" type="text/javascript">
+
+  var testHelper = function(){
+
+    var testSuite = function(){
+      test("Integer Literals", function() {
+	ok( isNumber("-10"), "Negative integer string");
+	ok( isNumber("0"), "Zero string");
+	ok( isNumber("5"), "Positive integer string");
+	ok( isNumber(-16), "Negative integer number");
+	ok( isNumber(0), "Zero integer number");
+	ok( isNumber(32), "Positive integer number");
+	ok( isNumber("040"), "Octal integer literal string");
+	ok( isNumber(0144), "Octal integer literal");
+	ok( isNumber("0xFF"), "Hexadecimal integer literal string");
+	ok( isNumber(0xFFF), "Hexadecimal integer literal");
+      });
+
+      test("Foating-Point Literals", function(){
+	ok( isNumber("-1.6"), "Negative floating point string");
+	ok( isNumber("4.536"), "Positive floating point string");
+	ok( isNumber(-2.6), "Negative floating point number");
+	ok( isNumber(3.1415), "Positive floating point number");
+	ok( isNumber(8e5), "Exponential notation");
+	ok( isNumber("123e-2"), "Exponential notation string");
+      });
+
+      test("Non-Numeric values", function(){
+	equals( isNumber(""), false, "Empty string");
+	equals( isNumber("        "), false, "Whitespace characters string");
+	equals( isNumber("\t\t"), false, "Tab characters string");
+	equals( isNumber("abcdefghijklm1234567890"), false, "Alphanumeric character string");
+	equals( isNumber("xabcdefx"), false, "Non-numeric character string");
+	equals( isNumber(true), false, "Boolean true literal");
+	equals( isNumber(false), false, "Boolean false literal");
+	equals( isNumber("bcfed5.2"), false, "Number with preceding non-numeric characters");
+	equals( isNumber("7.2acdgs"), false, "Number with trailling non-numeric characters");
+	equals( isNumber(undefined), false, "Undefined value");
+	equals( isNumber(null), false, "Null value");
+	equals( isNumber(NaN), false, "NaN value");
+	equals( isNumber(Infinity), false, "Infinity primitive");
+	equals( isNumber(Number.POSITIVE_INFINITY), false, "Positive Infinity");
+	equals( isNumber(Number.NEGATIVE_INFINITY), false, "Negative Infinity");
+	equals( isNumber(new Date(2009,1,1)), false, "Date object");
+	equals( isNumber(new Object()), false, "Empty object");
+	equals( isNumber(function(){}), false, "Instance of a function");
+      });
+    }
+
+    var functionsToTest = [
+      function(n){return !isNaN(parseFloat(n)) && isFinite(n);}, 
+      function(n){return !isNaN(n) && !isNaN(parseFloat(n)) ;}, 
+      function(n){return !isNaN((n)); },
+      function(n){return !isNaN(parseFloat(n)); },
+      function(n){return typeof(n) != "boolean" && !isNaN(n);},
+      function(n){return parseFloat(n) === Number(n);},
+      function(n){return parseInt(n) === Number(n);},
+      function(n){return !isNaN(Number(String(n)));},
+      function(n){return !isNaN(+('' + n));},
+      function(n){return (+n) == n;},
+      function(n){return n && /^-?\d+(\.\d+)?$/.test(n + '');},
+      function(n){return isFinite(Number(String(n)));},
+      function(n){return isFinite(String(n));}, 
+      function(n){return !isNaN(n) && !isNaN(parseFloat(n)) && isFinite(n);},
+      function(n){return parseFloat(n) == n;},
+      function (n) { return (n - 0) == n && n.length > 0;}
+
+    ];
+
+
+    // Examines the functionsToTest array, extracts the return statement of each function
+    // and fills the toTest select element.
+    var fillToTestSelect = function(){
+      for(var i=0; i<functionsToTest.length; i++){
+	var f = functionsToTest[i].toString();
+	var option = /[\s\S]*return ([\s\S]*);/.exec(f)[1];
+	$("#toTest").append('<option value="'+i+'">'+ (i+1) + '. ' + option+'</option>');
+      }
+    }
+
+    var performTest = function(functionNumber){
+      reset(); // Reset previous test
+      $("#tests").html(""); //Clean test results
+      isNumber = functionsToTest[functionNumber]; // Override the isNumber global function with the one to test
+      testSuite(); // Run the test
+
+      // Get test results
+      var totalFail = 0;
+      var totalPass = 0;
+      $("b.fail").each(function(){totalFail+=Number($(this).html());});
+      $("b.pass").each(function(){totalPass+=Number($(this).html());});
+      $("#testresult").html(totalFail + " of " +  (totalFail + totalPass) + " test failed.");
+
+      $("#banner").attr("class", "").addClass(totalFail > 0 ? "fail" : "pass");
+    } 
+
+    return {
+      performTest: performTest,
+      fillToTestSelect: fillToTestSelect,
+      testSuite: testSuite
+    };
+  }();
+
+
+  $(document).ready(function(){
+    testHelper.fillToTestSelect();
+    testHelper.performTest(0);
+    
+    $("#toTest").change(function(){
+      testHelper.performTest($(this).children(":selected").val());
+    });
+  });
+  </script>
+
+</head>
+<body>
+  
+ <h1>isNumber Test Cases</h1>
+ <h2 id="banner"></h2>
+ <h2 id="userAgent"></h2>
+
+ <div id="currentFunction"></div>
+ <div id="selectFunction">
+   <label for="toTest" style="font-weight:bold; font-size:Large;">Select function to test:</label>
+
+   <select id="toTest" name="toTest">
+     
+   </select>
+ </div>
+ <div id="testCode"></div>
+ <ol id="tests"></ol>
+
+ <div id="main">This page contains tests for a set of isNumber functions. To see them, take a look at the source.</div>
+ 
+</body>
+</html>
