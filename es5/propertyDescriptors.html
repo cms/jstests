@@ -1,0 +1,108 @@
+<!DOCTYPE>
+<html>
+<head>
+<link rel="stylesheet" href="../qunit/qunit.css" type="text/css" media="screen" />
+<script type="text/javascript" src="../qunit/qunit.js"></script>
+<script>
+test("Named Data Property Semantics", function() {
+  ok(function () {
+    var obj = Object.defineProperty({}, 'foo', { value: '' }),
+        desc = Object.getOwnPropertyDescriptor(obj, 'foo');
+    
+    return desc.enumerable === false && desc.configurable === false &&
+           desc.writable === false;
+   
+  }(), "[[Enumerable]], [[Configurable]] and [[Writable]] property attributes default to `false` if absent on Data Properties" );
+
+  ok(function () {
+    var obj = Object.defineProperty({}, 'foo', {
+      value: 'foo',
+      writable: false // specifying false due the IE9pre3 bug
+    });
+    
+    obj.foo = 'bar';
+    
+    return obj.foo === 'foo';
+   
+  }(), "When [[Writable]] is `false` the [[Value]] of a named data property cannot be changed");
+  
+  ok(function () {
+    var obj = Object.defineProperty({}, 'foo', {
+      value: 'foo',
+      configurable: false // specifying false due the IE9pre3 bug
+    });
+    
+        
+    return !(delete obj.foo) && typeof obj.foo != 'undefined';
+   
+  }(), "When [[Configurable]] is set to `false` an attempt to delete a property fails" );
+  
+  ok(function () {
+    var obj = Object.defineProperty({}, 'foo', {
+      value: 'foo',
+      configurable: false // specifying false due the IE9pre3 bug
+    });
+    
+    try {
+      Object.defineProperty(obj, 'foo', { get: function () { return 'bar'; } });
+    } catch (e) {
+      return e instanceof TypeError;
+    }
+  }(), "When [[Configurable]] is set to `false` an attempt to convert the property to an Accessor Property fails" );
+
+  ok(function () {
+    var obj = Object.defineProperty({}, 'foo', {
+      value: 'foo',
+      configurable: false // specifying false due the IE9pre3 bug
+    });
+    
+    try {
+      Object.defineProperty(obj, 'foo', { configurable: true });
+    } catch (e) {
+      return e instanceof TypeError;
+    }
+  }(), "When [[Configurable]] is set to `false` an attempt to change a property attribute fails" );
+
+  ok(function () {
+    var obj = Object.defineProperty({}, 'foo', {
+      value: 'foo',
+      configurable: false, // specifying false due the IE9pre3 bug
+      writable: true
+    });
+    
+    try {
+      Object.defineProperty(obj, 'foo', { value: 'bar' });
+      return obj.foo === 'bar';
+    } catch (e) {
+      return false;
+    }
+  }(), "When [[Configurable]] is set to `false`, the [[Value]] attribute can be changed (also if [[Writable]] == true)" );
+});
+    
+test("Named Accessor Property Semantics", function() {
+  ok(function () {
+    var obj = Object.defineProperty({}, 'foo', {
+      get: function () { return ''; }
+    }), desc = Object.getOwnPropertyDescriptor(obj, 'foo');
+    
+    return desc.enumerable === false && desc.configurable === false;
+   
+  }(), "[[Enumerable]], and [[Configurable]] property attributes default to `false` on Accessor Properties" );
+});
+
+test("General", function () {
+  ok(function () {
+    var obj = Object.defineProperty({}, 'foo', {});
+     return obj.hasOwnProperty('foo');
+  }(), "A generic property descriptor is a Property Descriptor value that is neither a data property descriptor nor an accessor property descriptor.");
+});
+</script>
+  
+</head>
+<body>
+  <h1 id="qunit-header">Property Descriptors Tests</h1>
+ <h2 id="qunit-banner"></h2>
+ <h2 id="qunit-userAgent"></h2>
+ <ol id="qunit-tests"></ol>
+</body>
+</html>
