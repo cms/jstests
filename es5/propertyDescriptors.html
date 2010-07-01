@@ -10,7 +10,7 @@ test("Named Data Property Semantics", function() {
   ok(function () {
     var obj = Object.defineProperty({}, 'foo', { value: '' }),
         desc = Object.getOwnPropertyDescriptor(obj, 'foo');
-    
+    // References: 8.6.1 Table 7 and [[DefineOwnProperty]] 8.12.9
     return desc.enumerable === false && desc.configurable === false &&
            desc.writable === false;
   }(), "[[Enumerable]], [[Configurable]] and [[Writable]] property attributes default to `false` if absent" );
@@ -22,7 +22,7 @@ test("Named Data Property Semantics", function() {
     });
     
     obj.foo = 'bar';
-    
+    // References: 8.6.1 Table 5, [[CanPut]] 8.12.4 and [[Put]] 8.12.5
     return obj.foo === 'foo';
   }(), "When [[Writable]] is `false` the [[Value]] of a named data property cannot be changed");
   
@@ -37,6 +37,7 @@ test("Named Data Property Semantics", function() {
     } catch (e) {
       return e instanceof TypeError;
     }
+    // References: 8.6.1 Table 5 and [[DefineOwnProperty]] 8.12.9-9.a
   }(), "When [[Configurable]] is set to `false` an attempt to convert the property to an Accessor Property fails" );
 
   ok(function () {
@@ -50,21 +51,19 @@ test("Named Data Property Semantics", function() {
     } catch (e) {
       return e instanceof TypeError;
     }
-  }(), "When [[Configurable]] is set to `false` an attempt to change a property attribute fails" );
+    // References: 8.6.1, Table 5 and [[DefineOwnProperty]] 8.12.9-10.a
+  }(), "When [[Configurable]] is set to `false` an attempt to change a property attribute other than [[Value]] fails" );
 
   ok(function () {
     var obj = Object.defineProperty({}, 'foo', {
       value: 'foo',
       configurable: false, // specifying false due the IE9pre3 bug
-      writable: true
+      writable: true // of course writable needs to be true
     });
-    
-    try {
-      Object.defineProperty(obj, 'foo', { value: 'bar' });
-      return obj.foo === 'bar';
-    } catch (e) {
-      return false;
-    }
+
+    Object.defineProperty(obj, 'foo', { value: 'bar' });
+    return obj.foo === 'bar';
+    // References: 8.6.1, Table 5 and [[DefineOwnProperty]] 8.12.9-10.a
   }(), "When [[Configurable]] is set to `false`, the [[Value]] attribute can be changed" );
 });
     
@@ -75,7 +74,7 @@ test("Named Accessor Property Semantics", function() {
     }), desc = Object.getOwnPropertyDescriptor(obj, 'foo');
     
     return desc.enumerable === false && desc.configurable === false;
-   
+    // References: 8.6.1 Table 7 and [[DefineOwnProperty]] 8.12.9-4.b.i
   }(), "[[Enumerable]], and [[Configurable]] property attributes default to `false` if absent");
 
   ok(function () {
@@ -86,53 +85,71 @@ test("Named Accessor Property Semantics", function() {
         noGetDesc = Object.getOwnPropertyDescriptor(obj, 'noGet');
 
     return noSetDesc.set === undefined  && noGetDesc.get === undefined;
+    // References: 8.6.1 Table 7 and [[DefineOwnProperty]] 8.12.9-4.b.i
   }(), "[[Get]] and [[Set]] property attributes default to `undefined` if absent" );
 
   ok(function () {
     var obj = Object.defineProperties({}, {
       'foo': { get: undefined, set: undefined }
-    });
-    try { 
-      return obj.hasOwnProperty('foo') 
-             && obj.foo === undefined; // Should be undefined because [[Get]](P) returns undefined if getter is also undefined, 8.12.3
+      // This is a valid accessor property, the internal IsAccessorDescriptor (8.10.1)
+      // method returns `false` only if [[Get]] and [[Set]] are absent, and that's 
+      // not the case, they are undefined, which is a valid value (8.6.1, Table 6)
+    }), desc = Object.getOwnPropertyDescriptor(obj, 'foo');
+
+    try { // IE9pre3 throws on both, [[Put]] and [[Get]](P)
+      obj.foo = 'bar'; // The internal [[CanPut]] method (8.12.4) should return false if the setter is undefined
+      return obj.hasOwnProperty('foo') && obj.foo === undefined // Should be undefined because [[Get]](P) (8.12.3) returns undefined if the getter is undefined 
+             && desc.hasOwnProperty('get') && desc.get === undefined 
+             && desc.hasOwnProperty('set') && desc.set === undefined;
     } catch (e) {
       return false;
     }
-  }(), "`undefined` is a valid value for the [[Get]] and [[Set]] property attributes, an own property should be defined");
+  }(), "`undefined` is a valid value for the [[Get]] and [[Set]] property attributes, a non-setteable, own property that returns `undefined` as its value should be defined");
 
-  ok( function () {
+  ok(function () {
     try {
       Object.defineProperty({}, "test", { get: false });
     } catch (e) {
       return e instanceof TypeError;
     }
+    // References: ToPropertyDescriptor 8.10.5-7.b
   }(), "TypeError expected if [[Get]] not callable or undefined");
 
-  ok( function () {
+  ok(function () {
     try {
       Object.defineProperty({}, "foo", { set: false });
     } catch (e) {
       return e instanceof TypeError;
     }
-  }(), "Throws TypeError expected if [[Set]] not callable or undefined");
+    // References: ToPropertyDescriptor 8.10.5-8.b
+  }(), "TypeError expected if [[Set]] not callable or undefined");
 });
 
 test("General", function () {
   ok(function () {
     var obj = Object.defineProperty({}, 'foo', {});
-    return obj.hasOwnProperty('foo');
-  }(), "A generic property descriptor is a Property Descriptor value that is neither a data property descriptor nor an accessor property descriptor");
+    return obj.hasOwnProperty('foo') && obj.foo === undefined;
+    // References: 8.10, [[DefineOwnProperty]] 8.12.9 
+  }(), "A generic property descriptor (one that's neither data descriptor nor accessor descriptor) produces a data property with the default `undefined` value");
 
   ok(function () {
-    var obj = Object.defineProperty({}, 'foo', {
-      value: 'foo',
-      configurable: false // specifying false due the IE9pre3 bug
+    var obj = Object.defineProperties({}, {
+      'foo': {
+        value: 'foo',
+        configurable: false // specifying false due the IE9pre3 bug
+      },
+      'bar': {
+        get: function () {},
+        configurable: false
+      }
     });
-    
-    return !(delete obj.foo) && typeof obj.foo != 'undefined';
+
+    return !(delete obj.foo) && obj.hasOwnProperty('foo') &&
+           !(delete obj.bar) && obj.hasOwnProperty('bar');
+    // References: 8.6.1, Table 5 and 6, [[Delete]] 8.12.7
   }(), "When [[Configurable]] is set to `false` an attempt to delete a property fails" );
 
-  ok( function () {
+  ok(function () {
     var result;
     try {
       Object.defineProperty({}, "foo", { get: function () { return "foo"; }, writable: true});
@@ -163,13 +180,14 @@ test("General", function () {
     }
 
     return result;
+    // References: ToPropertyDescriptor 8.10.5-9.a
   }(), "[[Get]] or [[Set]] cannot be combined with [[Value]] or [[Writable]], a TypeError is expected");
 });
 </script>
   
 </head>
 <body>
-  <h1 id="qunit-header">Property Descriptors Tests</h1>
+ <h1 id="qunit-header">Property Descriptors Tests</h1>
  <h2 id="qunit-banner"></h2>
  <h2 id="qunit-userAgent"></h2>
  <ol id="qunit-tests"></ol>
